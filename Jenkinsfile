@@ -6,7 +6,7 @@ pipeline {
             steps {
                 echo "Pulling from GitHub..."
                 git branch: 'master',
-                    url: 'git@github.com:arijhakouna/tpFoyer.git'
+                    url: 'https://github.com/arijhakouna/tpFoyer.git'
             }
         }
 
