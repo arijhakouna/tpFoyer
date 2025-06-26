@@ -14,7 +14,11 @@
     <name>tp-foyer</name>
     <description>tp-foyer</description>
     <properties>
-        <java.version>17</java.version>
+             <java.version>17</java.version>
+             <!-- Configuration SonarQube -->
+             <sonar.projectKey>tp-foyer</sonar.projectKey>
+             <sonar.projectName>TP Foyer</sonar.projectName>
+             <sonar.host.url>http://192.168.35.146:9000</sonar.host.url>
     </properties>
     <dependencies>
 
@@ -69,12 +73,17 @@
                     </excludes>
                 </configuration>
             </plugin>
+                 <plugin>
+                      <groupId>org.sonarsource.scanner.maven</groupId>
+                      <artifactId>sonar-maven-plugin</artifactId>
+                      <version>4.0.0.4121</version>
+                  </plugin>
         </plugins>
     </build>
     <!-- Deploy to Nexus -->
     <distributionManagement>
         <repository>
-            <id>deploymentRepo</id>
+            <id></id>
             <name>Nexus Repository</name>
             <url>http://192.168.35.146/:8081/repository/maven-releases/</url>
         </repository>
