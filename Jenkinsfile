@@ -2,61 +2,91 @@ pipeline {
     agent any
 
     stages {
-        stage("Git stage") {
+        stage("Checkout") {
             steps {
-                echo "Pulling from GitHub..."
+                echo "Checking out code from GitHub..."
                 git branch: 'master',
                     url: 'https://github.com/arijhakouna/tpFoyer.git'
             }
         }
 
-        stage("MVN CLEAN") {
+        stage("Clean & Compile") {
             steps {
-                sh 'mvn clean'
+                echo "Cleaning and compiling the project..."
+                sh 'mvn clean compile'
             }
         }
 
-        stage("MVN COMPILE") {
+        stage("Unit Tests") {
             steps {
-                sh 'mvn compile'
+                echo "Running Unit Tests..."
+                sh 'mvn test -Dtest="*ServiceTest,*RestControllerTest" -DfailIfNoTests=false'
+            }
+            post {
+                always {
+                    publishTestResults testResultsPattern: '**/target/surefire-reports/*.xml'
+                }
             }
         }
 
-        stage("MVN SONARQUBE") {
+        stage("Integration Tests") {
             steps {
+                echo "Running Integration Tests..."
+                sh 'mvn test -Dtest="*IntegrationTest" -DfailIfNoTests=false'
+            }
+            post {
+                always {
+                    publishTestResults testResultsPattern: '**/target/surefire-reports/*.xml'
+                }
+            }
+        }
+
+        stage("SonarQube") {
+            steps {
+                echo "Running SonarQube analysis..."
                 withSonarQubeEnv('SonarQubeServer') {
                     sh 'mvn sonar:sonar'
-                } 
+                }
             }
         }
-        stage("MVN Test") {
-            steps {
-                sh 'mvn test'
-            }
-        }
-        
+
         stage("Nexus") {
             steps {
+                echo "Deploying to Nexus repository..."
                 sh 'mvn deploy'
             }
         }
-        stage("Building Image") {
+
+        stage("Docker") {
             steps {
+                echo "Building and pushing Docker image..."
                 sh """
                 docker build -t tpfoyer:1.0.0 .
                 docker tag tpfoyer:1.0.0 arijhakouna/tpfoyer:1.0.0
-                docker login -u arijhakouna  -p azerty123
+                docker login -u arijhakouna -p azerty123
                 docker push arijhakouna/tpfoyer:1.0.0
                 """
             }
-        }                
-        stage("Deploy Image") {
+        }
+
+        stage("Docker Compose") {
             steps {
-                sh 'docker compose -f Docker-compose.yml up -d  '
+                echo "Deploying with Docker Compose..."
+                sh 'docker compose -f Docker-compose.yml up -d'
                 sh 'docker ps -a'
             }
-        }        
-        
-        
+        }
+    }
+
+    post {
+        always {
+            echo "Pipeline completed with result: ${currentBuild.result}"
+        }
+        success {
+            echo " Pipeline succeeded! Application deployed successfully."
+        }
+        failure {
+            echo " Pipeline failed! Check the logs for details."
+        }
     }
 }
