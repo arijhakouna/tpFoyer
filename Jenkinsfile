@@ -35,7 +35,7 @@ pipeline {
                     
                     echo "Tag ${fullVersion} created and pushed successfully"
                     
-                    // Assigner les variables d'environnement après
+                    // Assigner les variables d'environnement globalement
                     env.VERSION = fullVersion
                     env.TAG_VERSION = fullVersion
                     
@@ -62,7 +62,6 @@ pipeline {
                 }
             }
         }
-
 
         stage("Integration Tests") {
             steps {
@@ -95,23 +94,31 @@ pipeline {
         stage("Docker") {
             steps {
                 echo "Building and pushing Docker image..."
-                sh """
-                docker build --build-arg VERSION=${env.VERSION} -t tpfoyer:${env.TAG_VERSION} .
-                docker tag tpfoyer:${env.TAG_VERSION} arijhakouna/tpfoyer:${env.TAG_VERSION}
-                docker login -u arijhakouna -p azerty123
-                docker push arijhakouna/tpfoyer:${env.TAG_VERSION}
-                """
+                script {
+                    echo "Using VERSION: ${env.VERSION}"
+                    echo "Using TAG_VERSION: ${env.TAG_VERSION}"
+                    
+                    sh """
+                    docker build --build-arg VERSION=${env.VERSION} -t tpfoyer:${env.TAG_VERSION} .
+                    docker tag tpfoyer:${env.TAG_VERSION} arijhakouna/tpfoyer:${env.TAG_VERSION}
+                    docker login -u arijhakouna -p azerty123
+                    docker push arijhakouna/tpfoyer:${env.TAG_VERSION}
+                    """
+                }
             }
         }
 
         stage("Docker Compose") {
             steps {
                 echo "Deploying with Docker Compose..."
-                sh """
-                export DOCKER_TAG=${env.TAG_VERSION}
-                docker compose -f Docker-compose.yml up -d
-                docker ps -a
-                """
+                script {
+                    echo "Using DOCKER_TAG: ${env.TAG_VERSION}"
+                    sh """
+                    export DOCKER_TAG=${env.TAG_VERSION}
+                    docker compose -f Docker-compose.yml up -d
+                    docker ps -a
+                    """
+                }
             }
         }
     }
