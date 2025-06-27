@@ -19,6 +19,7 @@
              <sonar.projectKey>tp-foyer</sonar.projectKey>
              <sonar.projectName>TP Foyer</sonar.projectName>
              <sonar.host.url>http://192.168.35.146:9000</sonar.host.url>
+             <sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
     </properties>
     <dependencies>
 
