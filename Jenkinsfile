@@ -72,6 +72,7 @@ pipeline {
                 withSonarQubeEnv('SonarQubeServer') {
                     sh 'mvn sonar:sonar'
                 }
+                waitForQualityGate abortPipeline: true
             }
         }
 
