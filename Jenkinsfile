@@ -34,7 +34,8 @@ pipeline {
                     
                     // Créer le tag Git
                     sh "git tag -a ${tagVersion} -m 'Release ${tagVersion}'"
-                    sh "git push origin ${tagVersion}"
+                    
+                    sh "git push git@github.com:arijhakouna/tpFoyer.git ${tagVersion}"
                     
                     echo "Tag ${tagVersion} created successfully"
                     
