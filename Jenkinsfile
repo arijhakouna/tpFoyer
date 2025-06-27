@@ -61,7 +61,7 @@ pipeline {
             }
             post {
                 always {
-                    junit '**/target/surefire-reports/*.xml'
+                    junitb '**/target/surefire-reports/*.xml'
                 }
             }
         }
@@ -119,6 +119,29 @@ pipeline {
                 }
             }
         }
+
+        stage('Monitoring') {
+            steps {
+                echo "Monitoring CPU/RAM via Prometheus"
+                sh '''
+                PROM_URL="http://192.168.35.146:9090"
+                CONTAINER="validation-tp-foyer-1"
+                CPU=$(curl -s "$PROM_URL/api/v1/query?query=rate(container_cpu_usage_seconds_total{container_label_io_kubernetes_container_name=\\"$CONTAINER\\"}[1m]) * 100" | jq '.data.result[0].value[1]' | tr -d '"')
+                RAM=$(curl -s "$PROM_URL/api/v1/query?query=container_memory_usage_bytes{container_label_io_kubernetes_container_name=\\"$CONTAINER\\"}" | jq '.data.result[0].value[1]' | tr -d '"')
+                RAM_MB=$(echo "$RAM / 1024 / 1024" | bc)
+                echo "CPU usage: $CPU %"
+                echo "RAM usage: $RAM_MB MB"
+
+                CONTAINER="validation-mysqldb-1"
+                CPU=$(curl -s "$PROM_URL/api/v1/query?query=rate(container_cpu_usage_seconds_total{container_label_io_kubernetes_container_name=\\"$CONTAINER\\"}[1m]) * 100" | jq '.data.result[0].value[1]' | tr -d '"')
+                RAM=$(curl -s "$PROM_URL/api/v1/query?query=container_memory_usage_bytes{container_label_io_kubernetes_container_name=\\"$CONTAINER\\"}" | jq '.data.result[0].value[1]' | tr -d '"')
+                RAM_MB=$(echo "$RAM / 1024 / 1024" | bc)
+                echo "CPU usage: $CPU %"
+                echo "RAM usage: $RAM_MB MB"
+                '''
+                echo "Consulte le dashboard Grafana ici : http://192.168.35.146:3000/d/tp_foyer"
+            }
+        }
     }
 
     post {
@@ -130,6 +153,14 @@ pipeline {
         }
         failure {
             echo "Pipeline failed! Check the logs for details."
+            mail to: 'Arij.Hakouna@esprit.tn',
+                 subject: "[Jenkins] ECHEC du pipeline ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 body: "Le pipeline a échoué. Consultez les logs Jenkins pour plus de détails."
+        }
+        unstable {
+            mail to: 'Arij.Hakouna@esprit.tn',
+                 subject: "[Jenkins] Pipeline instable ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 body: "Le pipeline est instable. Consultez les logs Jenkins pour plus de détails."
         }
     }
 }
