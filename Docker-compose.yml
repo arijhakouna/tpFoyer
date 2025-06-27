@@ -15,7 +15,7 @@ services:
   tp-foyer:
     depends_on:
       - mysqldb
-    image: arijhakouna/tpfoyer:1.0.0
+    image: arijhakouna/tpfoyer:${DOCKER_TAG:-latest}
     restart : always 
     ports:
       - 8089:8089

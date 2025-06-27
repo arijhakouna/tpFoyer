@@ -108,8 +108,11 @@ pipeline {
         stage("Docker Compose") {
             steps {
                 echo "Deploying with Docker Compose..."
-                sh 'docker compose -f Docker-compose.yml up -d'
-                sh 'docker ps -a'
+                sh """
+                export DOCKER_TAG=${env.TAG_VERSION}
+                docker compose -f Docker-compose.yml up -d
+                docker ps -a
+                """
             }
         }
     }
