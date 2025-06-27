@@ -8,39 +8,35 @@ pipeline {
     }
 
     stages {
-        stage("Checkout") {
+        stage("Checkout & Tagging") {
             steps {
-                echo "Checking out code from GitHub..."
-                git branch: 'master',
-                    url: 'https://github.com/arijhakouna/tpFoyer.git'
-            }
-        }
-
-        stage("Version & Tagging") {
-            steps {
-                echo "Creating version and tag..."
+                echo "Checking out code and creating tag..."
                 script {
-                    // Lire la version depuis pom.xml
-                    def baseVersion = sh(
-                        script: 'mvn help:evaluate -Dexpression=project.version -q -DforceStdout',
-                        returnStdout: true
-                    ).trim()
+                    // Checkout
+                    git branch: 'master',
+                        url: 'https://github.com/arijhakouna/tpFoyer.git'
                     
-                    // Créer un tag unique avec BUILD_NUMBER
-                    def tagVersion = "${baseVersion}-${env.BUILD_NUMBER}"
+                    // Créer la version avec BUILD_NUMBER
+                    def baseVersion = "5.0.1-SNAPSHOT"
+                    def fullVersion = "${baseVersion}-${env.BUILD_NUMBER}"
+                    
+                    env.VERSION = fullVersion
+                    env.TAG_VERSION = fullVersion
                     
                     echo "Base version: ${baseVersion}"
-                    echo "Tag version: ${tagVersion}"
+                    echo "Full version: ${fullVersion}"
+                    echo "Tag version: ${env.TAG_VERSION}"
+                    
+                    // Mettre à jour le pom.xml avec la version complète
+                    sh "mvn versions:set -DnewVersion=${fullVersion} -DgenerateBackupPoms=false"
                     
                     // Créer le tag Git
-                    sh "git tag -a ${tagVersion} -m 'Release ${tagVersion}'"
-                    sh "git push git@github.com:arijhakouna/tpFoyer.git ${tagVersion}"
+                    sh "git add pom.xml"
+                    sh "git commit -m 'Update version to ${fullVersion}' || true"
+                    sh "git tag -a ${env.TAG_VERSION} -m 'Release ${env.TAG_VERSION}'"
+                    sh "git push git@github.com:arijhakouna/tpFoyer.git ${env.TAG_VERSION}"
                     
-                    echo "Tag ${tagVersion} created successfully"
-                    
-                    // Assigner les variables d'environnement
-                    env.VERSION = baseVersion
-                    env.TAG_VERSION = tagVersion
+                    echo "Tag ${env.TAG_VERSION} created successfully"
                 }
             }
         }
@@ -63,7 +59,7 @@ pipeline {
                 }
             }
         }
-//hello
+
 
         stage("Integration Tests") {
             steps {
