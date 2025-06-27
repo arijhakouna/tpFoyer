@@ -7,6 +7,7 @@ import tn.esprit.tpfoyer.entity.Universite;
 import tn.esprit.tpfoyer.repository.UniversiteRepository;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @Service
 @AllArgsConstructor
@@ -19,7 +20,8 @@ public class UniversiteServiceImpl implements IUniversiteService {
     }
 
     public Universite retrieveUniversite(Long universiteId) {
-        return universiteRepository.findById(universiteId).get();
+        return universiteRepository.findById(universiteId)
+                .orElseThrow(() -> new NoSuchElementException("Universite not found with id: " + universiteId));
     }
 
     public Universite addUniversite(Universite u) {

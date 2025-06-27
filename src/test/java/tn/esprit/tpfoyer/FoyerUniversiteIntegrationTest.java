@@ -178,11 +178,15 @@ class FoyerUniversiteIntegrationTest {
 
         Foyer createdFoyer = objectMapper.readValue(foyerResponse, Foyer.class);
 
-        // Test 2: Créer une université avec le foyer
+        // Test 2: Créer une université avec l'ID du foyer (pas l'objet complet)
         Universite universite = new Universite();
         universite.setNomUniversite("Université avec Foyer");
         universite.setAdresse("Adresse Université");
-        universite.setFoyer(createdFoyer);
+        
+        // Créer un foyer avec seulement l'ID pour éviter l'entité détachée
+        Foyer foyerRef = new Foyer();
+        foyerRef.setIdFoyer(createdFoyer.getIdFoyer());
+        universite.setFoyer(foyerRef);
 
         String universiteJson = objectMapper.writeValueAsString(universite);
         String universiteResponse = mockMvc.perform(post("/universite/add-universite")
@@ -258,10 +262,10 @@ class FoyerUniversiteIntegrationTest {
     void testEntityNotFound_Integration() throws Exception {
         // Tester la récupération d'un foyer inexistant
         mockMvc.perform(get("/foyer/retrieve-foyer/999"))
-                .andExpect(status().isOk()); // Le contrôleur ne gère pas les erreurs
+                .andExpect(status().isInternalServerError()); // Maintenant on s'attend à une erreur
 
         // Tester la récupération d'une université inexistante
         mockMvc.perform(get("/universite/retrieve-universite/999"))
-                .andExpect(status().isOk()); // Le contrôleur ne gère pas les erreurs
+                .andExpect(status().isInternalServerError()); // Maintenant on s'attend à une erreur
     }
 } 
