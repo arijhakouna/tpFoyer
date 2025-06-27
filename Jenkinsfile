@@ -27,14 +27,13 @@ pipeline {
                     ).trim()
                     
                     // Créer un tag unique avec BUILD_NUMBER
-                    def tagVersion = "v${baseVersion}-${env.BUILD_NUMBER}"
+                    def tagVersion = "${baseVersion}-${env.BUILD_NUMBER}"
                     
                     echo "Base version: ${baseVersion}"
                     echo "Tag version: ${tagVersion}"
                     
                     // Créer le tag Git
                     sh "git tag -a ${tagVersion} -m 'Release ${tagVersion}'"
-                    
                     sh "git push git@github.com:arijhakouna/tpFoyer.git ${tagVersion}"
                     
                     echo "Tag ${tagVersion} created successfully"
