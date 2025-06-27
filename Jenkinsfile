@@ -1,12 +1,45 @@
 pipeline {
     agent any
 
+    environment {
+        // Variables globales pour la version
+        VERSION = ''
+        TAG_VERSION = ''
+    }
+
     stages {
         stage("Checkout") {
             steps {
                 echo "Checking out code from GitHub..."
                 git branch: 'master',
                     url: 'https://github.com/arijhakouna/tpFoyer.git'
+            }
+        }
+
+        stage("Version & Tagging") {
+            steps {
+                echo "Creating version and tag..."
+                script {
+                    // Lire la version depuis pom.xml
+                    def baseVersion = sh(
+                        script: 'mvn help:evaluate -Dexpression=project.version -q -DforceStdout',
+                        returnStdout: true
+                    ).trim()
+                    
+                    // Créer un tag unique avec BUILD_NUMBER
+                    def tagVersion = "v${baseVersion}-${env.BUILD_NUMBER}"
+                    env.VERSION = baseVersion
+                    env.TAG_VERSION = tagVersion
+                    
+                    echo "Base version: ${baseVersion}"
+                    echo "Tag version: ${env.TAG_VERSION}"
+                    
+                    // Créer le tag Git
+                    sh "git tag -a ${env.TAG_VERSION} -m 'Release ${env.TAG_VERSION}'"
+                    sh "git push origin ${env.TAG_VERSION}"
+                    
+                    echo "Tag ${env.TAG_VERSION} created successfully"
+                }
             }
         }
 
@@ -54,7 +87,7 @@ pipeline {
         stage("Nexus") {
             steps {
                 echo "Deploying to Nexus repository..."
-                sh 'mvn deploy'
+                sh 'mvn deploy -DskipTests'
             }
         }
 
@@ -62,10 +95,10 @@ pipeline {
             steps {
                 echo "Building and pushing Docker image..."
                 sh """
-                docker build -t tpfoyer:1.0.0 .
-                docker tag tpfoyer:1.0.0 arijhakouna/tpfoyer:1.0.0
+                docker build -t tpfoyer:${env.TAG_VERSION} .
+                docker tag tpfoyer:${env.TAG_VERSION} arijhakouna/tpfoyer:${env.TAG_VERSION}
                 docker login -u arijhakouna -p azerty123
-                docker push arijhakouna/tpfoyer:1.0.0
+                docker push arijhakouna/tpfoyer:${env.TAG_VERSION}
                 """
             }
         }
@@ -84,10 +117,10 @@ pipeline {
             echo "Pipeline completed with result: ${currentBuild.result}"
         }
         success {
-            echo " Pipeline succeeded! Application deployed successfully."
+            echo "Pipeline succeeded! Application deployed successfully with tag ${env.TAG_VERSION}"
         }
         failure {
-            echo " Pipeline failed! Check the logs for details."
+            echo "Pipeline failed! Check the logs for details."
         }
     }
 }
