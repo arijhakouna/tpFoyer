@@ -20,23 +20,26 @@ pipeline {
                     def baseVersion = "5.0.1-SNAPSHOT"
                     def fullVersion = "${baseVersion}-${env.BUILD_NUMBER}"
                     
-                    env.VERSION = fullVersion
-                    env.TAG_VERSION = fullVersion
-                    
                     echo "Base version: ${baseVersion}"
                     echo "Full version: ${fullVersion}"
-                    echo "Tag version: ${env.TAG_VERSION}"
+                    echo "Build number: ${env.BUILD_NUMBER}"
                     
                     // Mettre à jour le pom.xml avec la version complète
                     sh "mvn versions:set -DnewVersion=${fullVersion} -DgenerateBackupPoms=false"
                     
-                    // Créer le tag Git
+                    // Créer le tag Git avec la variable locale
                     sh "git add pom.xml"
                     sh "git commit -m 'Update version to ${fullVersion}' || true"
-                    sh "git tag -a ${env.TAG_VERSION} -m 'Release ${env.TAG_VERSION}'"
-                    sh "git push git@github.com:arijhakouna/tpFoyer.git ${env.TAG_VERSION}"
+                    sh "git tag -a ${fullVersion} -m 'Release ${fullVersion}'"
+                    sh "git push git@github.com:arijhakouna/tpFoyer.git ${fullVersion}"
                     
-                    echo "Tag ${env.TAG_VERSION} created successfully"
+                    echo "Tag ${fullVersion} created and pushed successfully"
+                    
+                    // Assigner les variables d'environnement après
+                    env.VERSION = fullVersion
+                    env.TAG_VERSION = fullVersion
+                    
+                    echo "Environment variables set: VERSION=${env.VERSION}, TAG_VERSION=${env.TAG_VERSION}"
                 }
             }
         }
