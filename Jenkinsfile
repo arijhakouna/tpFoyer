@@ -28,17 +28,19 @@ pipeline {
                     
                     // Créer un tag unique avec BUILD_NUMBER
                     def tagVersion = "v${baseVersion}-${env.BUILD_NUMBER}"
-                    env.VERSION = baseVersion
-                    env.TAG_VERSION = tagVersion
                     
                     echo "Base version: ${baseVersion}"
-                    echo "Tag version: ${env.TAG_VERSION}"
+                    echo "Tag version: ${tagVersion}"
                     
                     // Créer le tag Git
-                    sh "git tag -a ${env.TAG_VERSION} -m 'Release ${env.TAG_VERSION}'"
-                    sh "git push origin ${env.TAG_VERSION}"
+                    sh "git tag -a ${tagVersion} -m 'Release ${tagVersion}'"
+                    sh "git push origin ${tagVersion}"
                     
-                    echo "Tag ${env.TAG_VERSION} created successfully"
+                    echo "Tag ${tagVersion} created successfully"
+                    
+                    // Assigner les variables d'environnement
+                    env.VERSION = baseVersion
+                    env.TAG_VERSION = tagVersion
                 }
             }
         }
