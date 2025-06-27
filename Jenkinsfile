@@ -97,7 +97,7 @@ pipeline {
             steps {
                 echo "Building and pushing Docker image..."
                 sh """
-                docker build -t tpfoyer:${env.TAG_VERSION} .
+                docker build --build-arg VERSION=${env.VERSION} -t tpfoyer:${env.TAG_VERSION} .
                 docker tag tpfoyer:${env.TAG_VERSION} arijhakouna/tpfoyer:${env.TAG_VERSION}
                 docker login -u arijhakouna -p azerty123
                 docker push arijhakouna/tpfoyer:${env.TAG_VERSION}
