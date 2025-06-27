@@ -95,14 +95,18 @@ pipeline {
             steps {
                 echo "Building and pushing Docker image..."
                 script {
-                    echo "Using VERSION: ${env.VERSION}"
-                    echo "Using TAG_VERSION: ${env.TAG_VERSION}"
+                    // Récupérer la version depuis le pom.xml
+                    def version = sh(script: "mvn help:evaluate -Dexpression=project.version -q -DforceStdout", returnStdout: true).trim()
+                    def tagVersion = version
+                    
+                    echo "Using VERSION: ${version}"
+                    echo "Using TAG_VERSION: ${tagVersion}"
                     
                     sh """
-                    docker build --build-arg VERSION=${env.VERSION} -t tpfoyer:${env.TAG_VERSION} .
-                    docker tag tpfoyer:${env.TAG_VERSION} arijhakouna/tpfoyer:${env.TAG_VERSION}
+                    docker build --build-arg VERSION=${version} -t tpfoyer:${tagVersion} .
+                    docker tag tpfoyer:${tagVersion} arijhakouna/tpfoyer:${tagVersion}
                     docker login -u arijhakouna -p azerty123
-                    docker push arijhakouna/tpfoyer:${env.TAG_VERSION}
+                    docker push arijhakouna/tpfoyer:${tagVersion}
                     """
                 }
             }
@@ -112,9 +116,12 @@ pipeline {
             steps {
                 echo "Deploying with Docker Compose..."
                 script {
-                    echo "Using DOCKER_TAG: ${env.TAG_VERSION}"
+                    // Récupérer la version depuis le pom.xml
+                    def tagVersion = sh(script: "mvn help:evaluate -Dexpression=project.version -q -DforceStdout", returnStdout: true).trim()
+                    
+                    echo "Using DOCKER_TAG: ${tagVersion}"
                     sh """
-                    export DOCKER_TAG=${env.TAG_VERSION}
+                    export DOCKER_TAG=${tagVersion}
                     docker compose -f Docker-compose.yml up -d
                     docker ps -a
                     """
