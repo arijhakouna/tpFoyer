@@ -164,7 +164,7 @@ class FoyerUniversiteIntegrationTest {
     void testUniversiteFoyerRelation_Integration() throws Exception {
         // Test 1: Créer un foyer
         Foyer foyer = new Foyer();
-        foyer.setNomFoyer("Foyer pour Université");
+        foyer.setNomFoyer("Foyer pour Universite");
         foyer.setCapaciteFoyer(300);
 
         String foyerJson = objectMapper.writeValueAsString(foyer);
@@ -180,8 +180,8 @@ class FoyerUniversiteIntegrationTest {
 
         // Test 2: Créer une université sans foyer d'abord
         Universite universite = new Universite();
-        universite.setNomUniversite("Université avec Foyer");
-        universite.setAdresse("Adresse Université");
+        universite.setNomUniversite("Universite avec Foyer");
+        universite.setAdresse("Adresse Universite");
         // Ne pas assigner de foyer ici
 
         String universiteJson = objectMapper.writeValueAsString(universite);
@@ -203,19 +203,19 @@ class FoyerUniversiteIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(updateJson))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.foyer.nomFoyer").value("Foyer pour Université"));
+                .andExpect(jsonPath("$.foyer.nomFoyer").value("Foyer pour Universite"));
 
         // Test 4: Vérifier la relation en récupérant l'université
         mockMvc.perform(get("/universite/retrieve-universite/{universite-id}", createdUniversite.getIdUniversite()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.foyer.idFoyer").value(createdFoyer.getIdFoyer()))
-                .andExpect(jsonPath("$.foyer.nomFoyer").value("Foyer pour Université"))
+                .andExpect(jsonPath("$.foyer.nomFoyer").value("Foyer pour Universite"))
                 .andExpect(jsonPath("$.foyer.capaciteFoyer").value(300));
 
         // Test 5: Vérifier que le foyer peut être récupéré indépendamment
         mockMvc.perform(get("/foyer/retrieve-foyer/{foyer-id}", createdFoyer.getIdFoyer()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nomFoyer").value("Foyer pour Université"));
+                .andExpect(jsonPath("$.nomFoyer").value("Foyer pour Universite"));
     }
 
     @Test
@@ -267,12 +267,22 @@ class FoyerUniversiteIntegrationTest {
     void testEntityNotFound_Integration() throws Exception {
         // Tester la récupération d'un foyer inexistant
         mockMvc.perform(get("/foyer/retrieve-foyer/999"))
-                .andExpect(status().isOk()) // Spring ne gère pas automatiquement les exceptions comme des erreurs HTTP
-                .andExpect(result -> assertTrue(result.getResolvedException() instanceof java.util.NoSuchElementException));
+                .andExpect(status().isOk()) // Spring retourne 200 même avec exception
+                .andExpect(result -> {
+                    Exception exception = result.getResolvedException();
+                    assertNotNull(exception);
+                    assertTrue(exception instanceof java.util.NoSuchElementException);
+                    assertTrue(exception.getMessage().contains("Foyer not found"));
+                });
 
         // Tester la récupération d'une université inexistante
         mockMvc.perform(get("/universite/retrieve-universite/999"))
-                .andExpect(status().isOk()) // Spring ne gère pas automatiquement les exceptions comme des erreurs HTTP
-                .andExpect(result -> assertTrue(result.getResolvedException() instanceof java.util.NoSuchElementException));
+                .andExpect(status().isOk()) // Spring retourne 200 même avec exception
+                .andExpect(result -> {
+                    Exception exception = result.getResolvedException();
+                    assertNotNull(exception);
+                    assertTrue(exception instanceof java.util.NoSuchElementException);
+                    assertTrue(exception.getMessage().contains("Universite not found"));
+                });
     }
 } 
