@@ -10,7 +10,7 @@ services:
     ports:
       - 3306:3306
     volumes:
-      - ./db:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
 
   tp-foyer:
     depends_on:
@@ -30,4 +30,4 @@ services:
     tty: true
 
 volumes:
-  db : 
+  mysql_data: 
