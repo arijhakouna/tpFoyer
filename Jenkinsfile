@@ -139,7 +139,7 @@ pipeline {
                 echo "CPU usage: $CPU %"
                 echo "RAM usage: $RAM_MB MB"
                 '''
-                echo "Consulte le dashboard Grafana ici : http://192.168.35.146:3000/d/tp_foyer"
+                echo "Consulte le dashboard Grafana ici : http://192.168.35.146:3000/d/874c43a4-20d9-4f85-894e-d8a1615a931c"
             }
         }
     }
