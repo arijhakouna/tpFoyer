@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  mysqldb:
+  mysql:
     image: mysql:5.7
     restart: always
     environment:
@@ -12,20 +12,15 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
 
-  tp-foyer:
+  app:
     depends_on:
-      - mysqldb
+      - mysql
     image: arijhakouna/tpfoyer:${DOCKER_TAG:-latest}
-    restart : always 
+    restart: always 
     ports:
       - 8089:8089
     environment:
-      SPRING_APPLICATION_JSON: '{
-        "spring.datasource.url" : "jdbc:mysql://mysqldb:3306/db?createDatabaseIfNotExist=true",
-        "spring.datasource.username" : "root" ,
-        "spring.datasource.password" : "",
-        "spring.jpa.properties.hibernate.dialect" : "org.hibernate.dialect.MySQLDialect",        
-        "spring.jpa.hibernate.ddl-auto" : "update" }'
+      SPRING_PROFILES_ACTIVE: docker
     stdin_open: true
     tty: true
 

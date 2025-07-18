@@ -4,6 +4,7 @@ pipeline {
     environment {
         VERSION = ''
         TAG_VERSION = ''
+        STACK_NAME = 'tpfoyer'
     }
 
     stages {
@@ -29,8 +30,6 @@ pipeline {
                     sh "git push git@github.com:arijhakouna/tpFoyer.git ${fullVersion}"
                     
                     echo "Tag ${fullVersion} created and pushed successfully"
-                    
-                
                 }
             }
         }
@@ -80,14 +79,13 @@ pipeline {
                         }
                         
                         echo "Waiting for SonarQube quality gate..."
-                        timeout(time: 15, unit: 'SECONDS') {
+                        timeout(time: 30, unit: 'SECONDS') {
                             def qg = waitForQualityGate abortPipeline: true
                             echo "Quality Gate Status: ${qg.status}"
                         }
                     } catch (Exception e) {
                         echo "Error in SonarQube stage: ${e.getMessage()}"
                         echo "Attempting to continue without quality gate..."
-                        // Continue the pipeline even if SonarQube fails
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
@@ -106,9 +104,9 @@ pipeline {
             }
         }
 
-        stage("Docker") {
+        stage("Docker Build") {
             steps {
-                echo "Building and pushing Docker image..."
+                echo "Building Docker image..."
                 script {
                     def version = sh(script: "mvn help:evaluate -Dexpression=project.version -q -DforceStdout", returnStdout: true).trim()
                     def tagVersion = version
@@ -126,42 +124,99 @@ pipeline {
             }
         }
 
-        stage("Docker Compose") {
+        stage("Docker Swarm Deploy") {
             steps {
-                echo "Deploying with Docker Compose..."
+                echo "Deploying with Docker Swarm..."
                 script {
                     def tagVersion = sh(script: "mvn help:evaluate -Dexpression=project.version -q -DforceStdout", returnStdout: true).trim()
                     
                     echo "Using DOCKER_TAG: ${tagVersion}"
+                    
+                    sh 'docker swarm init --advertise-addr 127.0.0.1 2>/dev/null || true'
+                    
+                    sh 'docker network create --driver overlay --attachable tpfoyer_network 2>/dev/null || true'
+                    
+                    sh 'docker volume create tpfoyer_mysql_data 2>/dev/null || true'
+                    
+                    sh 'docker stack rm ${STACK_NAME} 2>/dev/null || true'
+                    sh 'sleep 10'
+                    
                     sh """
                     export DOCKER_TAG=${tagVersion}
-                    docker compose -f Docker-compose.yml up -d
-                    docker ps -a
+                    docker stack deploy -c docker-compose.swarm.yml ${STACK_NAME}
                     """
+                    
+                    sh 'sleep 60'
+
                 }
             }
         }
 
-        stage('Monitoring') {
+        stage('Swarm Monitoring') {
             steps {
-                echo "Monitoring CPU/RAM via Prometheus"
-                sh '''
-                PROM_URL="http://192.168.35.146:9090"
-                CONTAINER="validation-tp-foyer-1"
-                CPU=$(curl -s "$PROM_URL/api/v1/query?query=rate(container_cpu_usage_seconds_total{container_label_io_kubernetes_container_name=\\"$CONTAINER\\"}[1m]) * 100" | jq '.data.result[0].value[1]' | tr -d '"')
-                RAM=$(curl -s "$PROM_URL/api/v1/query?query=container_memory_usage_bytes{container_label_io_kubernetes_container_name=\\"$CONTAINER\\"}" | jq '.data.result[0].value[1]' | tr -d '"')
-                RAM_MB=$(echo "$RAM / 1024 / 1024" | bc)
-                echo "CPU usage: $CPU %"
-                echo "RAM usage: $RAM_MB MB"
+                echo "Monitoring Docker Swarm services..."
+                script {
+                    sh '''
+                    echo "=== Service Status ==="
+                    docker service ls
+                    
+                    echo "=== Stack Services ==="
+                    docker stack services ${STACK_NAME}
+                    
+                    echo "=== Service Logs ==="
+                    docker service logs ${STACK_NAME}_app --tail 10
+                    docker service logs ${STACK_NAME}_mysql --tail 5
+                    '''
+                    
+                    echo "Application: http://10.148.1.146:8089"
+                    echo "MySQL: http://10.148.1.146:3306"
+                }
+            }
+        }
 
-                CONTAINER="validation-mysqldb-1"
-                CPU=$(curl -s "$PROM_URL/api/v1/query?query=rate(container_cpu_usage_seconds_total{container_label_io_kubernetes_container_name=\\"$CONTAINER\\"}[1m]) * 100" | jq '.data.result[0].value[1]' | tr -d '"')
-                RAM=$(curl -s "$PROM_URL/api/v1/query?query=container_memory_usage_bytes{container_label_io_kubernetes_container_name=\\"$CONTAINER\\"}" | jq '.data.result[0].value[1]' | tr -d '"')
-                RAM_MB=$(echo "$RAM / 1024 / 1024" | bc)
-                echo "CPU usage: $CPU %"
-                echo "RAM usage: $RAM_MB MB"
-                '''
-                echo "Consulte le dashboard Grafana ici : http://192.168.35.146:3000/d/874c43a4-20d9-4f85-894e-d8a1615a931c"
+        stage('Health Check') {
+            steps {
+                echo "Performing health checks..."
+                script {
+                    sh '''
+                    echo "Waiting for MySQL to be ready..."
+                    for i in {1..30}; do
+                        if docker service ls | grep -q "tpfoyer_mysql.*1/1"; then
+                            echo "MySQL is ready!"
+                            break
+                        fi
+                        echo "Waiting for MySQL... ($i/30)"
+                        sleep 10
+                    done
+                    '''
+                    
+                    sh '''
+                    echo "Waiting for application to be ready..."
+                    for i in {1..30}; do
+                        if docker service ls | grep -q "tpfoyer_app.*2/2"; then
+                            echo "Application is ready!"
+                            break
+                        fi
+                        echo "Waiting for application... ($i/30)"
+                        sleep 10
+                    done
+                    '''
+                }
+            }
+        }
+
+        stage('Swarm Scaling Test') {
+            steps {
+                echo "Testing Swarm scaling capabilities..."
+                script {
+                    sh '''
+                    echo "Scaling application to 3 replicas..."
+                    docker service scale tpfoyer_app=3
+                    sleep 20
+                    docker service ls
+                    docker stack ps tpfoyer
+                    '''
+                }
             }
         }
     }
@@ -171,18 +226,20 @@ pipeline {
             echo "Pipeline completed with result: ${currentBuild.result}"
         }
         success {
-            echo "Pipeline succeeded! Application deployed successfully with tag ${env.TAG_VERSION}"
+            echo "Pipeline succeeded! Application deployed successfully with Docker Swarm"
+            echo "Stack name: ${STACK_NAME}"
+            echo "Tag version: ${env.TAG_VERSION}"
         }
         failure {
             echo "Pipeline failed! Check the logs for details."
             mail to: 'Arij.Hakouna@esprit.tn',
-                 subject: "[Jenkins] ECHEC du pipeline ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                 body: "Le pipeline a échoué. Consultez les logs Jenkins pour plus de détails."
+                 subject: "[Jenkins] ECHEC du pipeline Swarm ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 body: "Le pipeline Docker Swarm a échoué. Consultez les logs Jenkins pour plus de détails."
         }
         unstable {
             mail to: 'Arij.Hakouna@esprit.tn',
-                 subject: "[Jenkins] Pipeline instable ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                 body: "Le pipeline est instable. Consultez les logs Jenkins pour plus de détails."
+                 subject: "[Jenkins] Pipeline Swarm instable ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 body: "Le pipeline Docker Swarm est instable. Consultez les logs Jenkins pour plus de détails."
         }
     }
-}
+} 
