@@ -161,7 +161,7 @@ pipeline {
                     docker service ls
                     
                     echo "=== Stack Services ==="
-                    docker stack services ${STACK_NAME}
+                    docker stack ps tpfoyer
                     
                     echo "=== Service Logs ==="
                     docker service logs ${STACK_NAME}_app --tail 10
@@ -170,37 +170,6 @@ pipeline {
                     
                     echo "Application: http://10.148.1.146:8089"
                     echo "MySQL: http://10.148.1.146:3306"
-                }
-            }
-        }
-
-        stage('Health Check') {
-            steps {
-                echo "Performing health checks..."
-                script {
-                    sh '''
-                    echo "Waiting for MySQL to be ready..."
-                    for i in {1..30}; do
-                        if docker service ls | grep -q "tpfoyer_mysql.*1/1"; then
-                            echo "MySQL is ready!"
-                            break
-                        fi
-                        echo "Waiting for MySQL... ($i/30)"
-                        sleep 10
-                    done
-                    '''
-                    
-                    sh '''
-                    echo "Waiting for application to be ready..."
-                    for i in {1..30}; do
-                        if docker service ls | grep -q "tpfoyer_app.*2/2"; then
-                            echo "Application is ready!"
-                            break
-                        fi
-                        echo "Waiting for application... ($i/30)"
-                        sleep 10
-                    done
-                    '''
                 }
             }
         }
